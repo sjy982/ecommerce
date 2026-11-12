@@ -82,8 +82,10 @@ public class OrderService {
                                    .build();
         orderRepository.save(order);
 
+        // 빠른 경로가 처리할 job이므로 주문과 함께 선점된 상태(PROCESSING)로 만든다.
+        // 커밋 후 요청 스레드에서 선점 UPDATE를 따로 하지 않아도 되어 커넥션을 추가로 빌리지 않는다.
         final PaymentJob paymentJob = PaymentJob.builder()
-                                                .status(PaymentJobStatus.PENDING)
+                                                .status(PaymentJobStatus.PROCESSING)
                                                 .orderId(order.getId()).build();
         paymentJobRepository.save(paymentJob);
 
