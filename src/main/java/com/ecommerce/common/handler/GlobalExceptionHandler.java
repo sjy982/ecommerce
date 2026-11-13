@@ -1,5 +1,9 @@
 package com.ecommerce.common.handler;
 
+import com.ecommerce.stock.exception.NotOnSaleException;
+import com.ecommerce.stock.exception.SoldOutException;
+import com.ecommerce.stock.exception.StockUnavailableException;
+
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,6 +93,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handlePaymentFailedException(PaymentFailedException ex) {
         log.error("An error occurred: {}", ex.getMessage(), ex);
         HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(httpStatus)
+                             .body(ApiResponseUtil.createResponse(httpStatus.value(), ex.getMessage()));
+    }
+
+    // 품절·판매 중 아님은 몰림 상황에서 대량으로 나오는 정상 거절이라 로그를 남기지 않는다.
+    @ExceptionHandler({SoldOutException.class, NotOnSaleException.class})
+    public ResponseEntity<ApiResponse<Void>> handleStockRejected(RuntimeException ex) {
+        HttpStatus httpStatus = HttpStatus.CONFLICT;
+        return ResponseEntity.status(httpStatus)
+                             .body(ApiResponseUtil.createResponse(httpStatus.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(StockUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleStockUnavailable(StockUnavailableException ex) {
+        log.error("재고 판정 불가(Redis 장애 등): {}", ex.getMessage(), ex);
+        HttpStatus httpStatus = HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(httpStatus)
                              .body(ApiResponseUtil.createResponse(httpStatus.value(), ex.getMessage()));
     }

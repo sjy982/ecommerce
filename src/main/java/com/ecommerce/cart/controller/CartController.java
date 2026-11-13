@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ecommerce.cart.DTO.AddItemToCartRequestDto;
 import com.ecommerce.cart.DTO.AddItemToCartResponseDto;
 import com.ecommerce.cart.DTO.CartItemResponseDto;
-import com.ecommerce.cart.DTO.CartItemsOrderRequestDto;
-import com.ecommerce.cart.DTO.CartItemsOrderResponseDto;
 import com.ecommerce.cart.service.CartService;
 import com.ecommerce.common.response.ApiResponse;
 import com.ecommerce.common.response.ApiResponseUtil;
@@ -47,12 +45,4 @@ public class CartController {
                 .body(ApiResponseUtil.createResponse(HttpStatus.OK.value(), items, "select items success"));
     }
 
-    @PostMapping("/items/order")
-    public ResponseEntity<ApiResponse<CartItemsOrderResponseDto>> cartItemsOrder(@RequestBody @Valid CartItemsOrderRequestDto dto) {
-        String providerId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        CartItemsOrderResponseDto responseDto = cartService.cartItemsOrder(providerId, dto);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponseUtil.createResponse(HttpStatus.OK.value(), responseDto, "cart items order success"));
-    }
 }

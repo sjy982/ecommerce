@@ -136,9 +136,9 @@ class NotificationServiceTest {
                                                                    .phoneNumber("010-1234-1234").build();
 
         // When && Then
-        orderService.orderProduct(user.getProviderId(), requestDto1);
-        orderService.orderProduct(user.getProviderId(), requestDto2);
-        orderService.orderProduct(user.getProviderId(), requestDto3);
+        placeOrderWithNotification(user, requestDto1);
+        placeOrderWithNotification(user, requestDto2);
+        placeOrderWithNotification(user, requestDto3);
 
         List<NotificationProjection> allNotifications = notificationService.getAllNotifications(product.getStore().getId());
         assertEquals(allNotifications.get(0).getCreatedAt().isAfter(allNotifications.get(1).getCreatedAt()), true);
@@ -176,7 +176,7 @@ class NotificationServiceTest {
                                                                    .deliveryAddress("test Address")
                                                                    .phoneNumber("010-1234-1234").build();
         // When && Then
-        orderService.orderProduct(user.getProviderId(), requestDto1);
+        placeOrderWithNotification(user, requestDto1);
         List<NotificationProjection> allNotifications = notificationService.getAllNotifications(product.getStore().getId());
         Notification unReadNotification = notificationRepository.findById(allNotifications.get(0).getId()).get();
 
@@ -186,5 +186,18 @@ class NotificationServiceTest {
                         unReadNotification.getOrder().getStore().getId() + 1
                 )
         );
+    }
+
+    /** 결제 완료 시 생성되는 알림을 흉내 낸다: 주문 저장 + 알림 생성 */
+    private void placeOrderWithNotification(Users orderer, OrderProductRequestDto dto) {
+        Orders order = orderRepository.save(Orders.builder()
+                .user(orderer).store(store).product(product).quantity(dto.getQuantity())
+                .deliveryAddress(dto.getDeliveryAddress()).phoneNumber(dto.getPhoneNumber()).build());
+        notificationService.createNotification(order);
+        try {
+            Thread.sleep(5);   // createdAt 정렬 검증을 위해 생성 시각을 확실히 다르게
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

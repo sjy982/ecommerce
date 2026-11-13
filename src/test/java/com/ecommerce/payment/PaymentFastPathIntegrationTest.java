@@ -28,7 +28,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.ecommerce.payment.support.PaymentFlowFixture;
 import com.ecommerce.product.repository.ProductRepository;
 import com.ecommerce.store.repository.StoreRepository;
+import com.ecommerce.stock.SaleService;
+import com.ecommerce.support.RedisTestContainer;
 import com.ecommerce.user.repository.UserRepository;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * 빠른 경로: 주문 트랜잭션 커밋 → AFTER_COMMIT 이벤트 → 선점 → 결제 스레드 풀.
@@ -41,6 +46,13 @@ import com.ecommerce.user.repository.UserRepository;
 })
 @ActiveProfiles("test")
 class PaymentFastPathIntegrationTest {
+    @DynamicPropertySource
+    static void redis(DynamicPropertyRegistry registry) {
+        RedisTestContainer.register(registry);   // 주문 접수가 Redis 재고 판정을 거치므로 테스트 전용 Redis 사용
+    }
+
+    @Autowired private SaleService saleService;
+    @Autowired private RedisTemplate<String, String> redisTemplate;
     @Autowired private OrderService orderService;
     @Autowired private CartRepository cartRepository;
     @Autowired private UserRepository userRepository;
@@ -58,6 +70,8 @@ class PaymentFastPathIntegrationTest {
         fixture = new PaymentFlowFixture(cartRepository, userRepository, storeRepository, categoryRepository,
                 productRepository, orderRepository, paymentJobRepository, notificationRepository);
         fixture.setUp(10);
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        saleService.open(fixture.storeName(), fixture.productId());
     }
 
     @AfterEach

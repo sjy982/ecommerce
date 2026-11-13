@@ -46,19 +46,6 @@ public class ProductService {
         return product;
     }
 
-    public Product findByIdUpdate(long id) {
-        Product product = productRepository.findByIdForUpdate(id)
-                .orElseThrow(() -> new UsernameNotFoundException("product not found"));
-        return product;
-    }
-
-    public void decreaseStock(Long id, int quantity) {
-        int updated = productRepository.decreaseStock(id, quantity);
-        if(updated == 0) {
-            throw new UsernameNotFoundException("product not found");
-        }
-    }
-
     public Product checkQuantity(long id, int quantity) {
         Product product = findById(id);
         if(product.getStock() < quantity) {

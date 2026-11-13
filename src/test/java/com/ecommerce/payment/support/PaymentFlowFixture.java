@@ -101,6 +101,19 @@ public class PaymentFlowFixture {
         return store.getId();
     }
 
+    public String storeName() {
+        return store.getName();
+    }
+
+    public Long productId() {
+        return product.getId();
+    }
+
+    /** DB에 저장된 product.stock (판매 총수량). 주문 접수로는 바뀌지 않아야 한다. */
+    public int productStockInDb() {
+        return productRepository.findById(product.getId()).orElseThrow().getStock();
+    }
+
     public OrderProductRequestDto orderRequest() {
         return OrderProductRequestDto.builder()
                 .productId(product.getId())

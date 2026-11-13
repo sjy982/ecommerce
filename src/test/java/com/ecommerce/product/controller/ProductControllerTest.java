@@ -21,6 +21,7 @@ import com.ecommerce.product.dto.RegisterProductRequestDto;
 import com.ecommerce.product.dto.RegisterProductResponseDto;
 import com.ecommerce.product.service.ProductService;
 import com.ecommerce.security.WithMockCustomUser;
+import com.ecommerce.stock.SaleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
@@ -36,6 +37,9 @@ class ProductControllerTest {
 
     @MockBean
     private ProductService productService;
+
+    @MockBean
+    private SaleService saleService;
 
     @Test
     @DisplayName("새로운 상품을 등록하고 올바른 응답을 반환해야 한다.")
@@ -78,5 +82,17 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.data.stock").value(stock))
                 .andExpect(jsonPath("$.data.description").value(description))
                 .andExpect(jsonPath("$.data.category").value(category));
+    }
+
+    @Test
+    @DisplayName("스토어가 판매를 오픈하면 Redis에 적재한 수량을 응답한다")
+    @WithMockCustomUser(username = TEST_PROVIDER_ID, role = TEST_STORE_ROLE)
+    void givenStore_whenOpenSale_thenReturnsLoadedStock() throws Exception {
+        when(saleService.open(TEST_PROVIDER_ID, 1L)).thenReturn(96L);
+
+        mockMvc.perform(post("/api/product/1/sale/open"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.data.productId").value(1))
+               .andExpect(jsonPath("$.data.stock").value(96));
     }
 }

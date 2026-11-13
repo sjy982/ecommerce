@@ -205,10 +205,10 @@ class GlobalExceptionHandlerTest {
                 .phoneNumber("010-1234-1234").build();
 
         String requestBody = objectMapper.writeValueAsString(requestDto);
-        when(orderService.orderProduct(TEST_PROVIDER_ID, requestDto))
+        when(orderService.orderProductAndPaymentRequest(TEST_PROVIDER_ID, requestDto))
                 .thenThrow(CannotAcquireLockException.class);
 
-        mockMvc.perform(post("/api/orders")
+        mockMvc.perform(post("/api/orders/payment")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody))
                .andExpect(status().isInternalServerError());

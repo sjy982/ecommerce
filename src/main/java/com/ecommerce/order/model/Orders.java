@@ -53,6 +53,13 @@ public class Orders {
     @Column(nullable = false, length = 15)
     private String phoneNumber;
 
+    /**
+     * 주문 요청마다 서버가 만드는 식별자(UUID).
+     * DB 저장 중 예외가 나면 이 값으로 "실제로 저장됐는지"를 확인해, 저장되지 않은 게 확실할 때만 Redis 재고를 되돌린다.
+     */
+    @Column(unique = true, length = 36)
+    private String requestId;
+
     @PrePersist
     public void prePersist() {
         orderDate = (orderDate == null) ? LocalDateTime.now() : orderDate;
