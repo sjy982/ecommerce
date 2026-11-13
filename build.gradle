@@ -17,6 +17,9 @@ repositories {
 	mavenCentral()
 }
 
+// Spring Boot 3.3.5 기본값(1.19.8)은 최신 Docker Engine(API 1.44 이상만 허용)과 통신하지 못해 CI에서 컨테이너를 띄우지 못한다
+ext['testcontainers.version'] = '1.21.4'
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
