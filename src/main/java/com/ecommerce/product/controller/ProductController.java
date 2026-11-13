@@ -1,5 +1,10 @@
 package com.ecommerce.product.controller;
 
+import org.springframework.web.bind.annotation.PathVariable;
+
+import com.ecommerce.stock.SaleService;
+import com.ecommerce.stock.dto.SaleOpenResponseDto;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final SaleService saleService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<RegisterProductResponseDto>> registerProduct(@RequestBody @Valid RegisterProductRequestDto dto) {
@@ -31,5 +37,15 @@ public class ProductController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponseUtil.createResponse(HttpStatus.CREATED.value(), responseDto, "product created"));
+    }
+
+    /** 판매 오픈: DB 기준 남은 수량을 Redis에 적재한다. 이후부터 주문을 받는다. */
+    @PostMapping("/{productId}/sale/open")
+    public ResponseEntity<ApiResponse<SaleOpenResponseDto>> openSale(@PathVariable Long productId) {
+        String storeName = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        long stock = saleService.open(storeName, productId);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponseUtil.createResponse(HttpStatus.OK.value(), new SaleOpenResponseDto(productId, stock), "sale opened"));
     }
 }

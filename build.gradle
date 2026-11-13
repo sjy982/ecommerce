@@ -17,6 +17,9 @@ repositories {
 	mavenCentral()
 }
 
+// Spring Boot 3.3.5 기본값(1.19.8)은 최신 Docker Engine(API 1.44 이상만 허용)과 통신하지 못해 CI에서 컨테이너를 띄우지 못한다
+ext['testcontainers.version'] = '1.21.4'
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -39,6 +42,9 @@ dependencies {
 	testImplementation 'com.h2database:h2'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	// 재고 Lua 스크립트·동시성은 실제 Redis가 필요하다. 로컬 Redis를 건드리지 않도록 테스트 전용 컨테이너를 띄운다.
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

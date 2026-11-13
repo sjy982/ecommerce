@@ -1,6 +1,5 @@
 package com.ecommerce.product.model;
 
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import com.ecommerce.category.model.Category;
 import com.ecommerce.store.model.Store;
@@ -43,20 +42,4 @@ public class Product {
     @ManyToOne
     @JoinColumn(name = "categoryId", nullable = false)
     private Category category;
-
-    public void decreaseStock(int quantity) {
-        if (!checkStock(quantity)) {
-            throw new UsernameNotFoundException("재고가 부족합니다.");
-        }
-        stock -= quantity;
-    }
-
-    public void increaseStock(int quantity) {
-        stock += quantity;
-    }
-
-    public boolean checkStock(int quantity) {
-        return stock >= quantity;
-    }
 }
-

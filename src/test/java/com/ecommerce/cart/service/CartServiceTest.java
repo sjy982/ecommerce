@@ -20,8 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ecommerce.cart.DTO.AddItemToCartRequestDto;
 import com.ecommerce.cart.DTO.AddItemToCartResponseDto;
 import com.ecommerce.cart.DTO.CartItemResponseDto;
-import com.ecommerce.cart.DTO.CartItemsOrderRequestDto;
-import com.ecommerce.cart.DTO.CartItemsOrderResponseDto;
 import com.ecommerce.cart.model.Cart;
 import com.ecommerce.cart.repository.CartRepository;
 import com.ecommerce.cartItem.model.CartItem;
@@ -205,78 +203,5 @@ class CartServiceTest {
         assertEquals(selectItems.get(1).getCartItemId(), items.get(1).getCartItemId());
         assertEquals(requestDto2.getQuantity(), items.get(1).getProductQuantity());
         assertEquals(requestDto2.getProductId(), items.get(1).getProductId());
-    }
-
-    @Test
-    @DisplayName("유저는 카트에 있는 물품을 선택해 한 번에 주문할 수 있다. (단 유저의 cartId와 CartItem의 cartId는 같아야 한다.)")
-    @Transactional
-    void givenCartItemsOrderRequestDto_whenCartItemsOrder_thenItemsOrderSuccess() {
-        // Given
-        AddItemToCartRequestDto requestDto = AddItemToCartRequestDto.builder()
-                                                                    .productId(product.getId())
-                                                                    .quantity(10).build();
-
-        AddItemToCartRequestDto requestDto2 = AddItemToCartRequestDto.builder()
-                                                                     .productId(product2.getId())
-                                                                     .quantity(20).build();
-
-        cartService.addItemToCart(user.getProviderId(), requestDto);
-        cartService.addItemToCart(user.getProviderId(), requestDto2);
-        List<CartItemResponseDto> items = cartService.getCartItems(user.getProviderId());
-
-        List<Long> cartItemIds = List.of(items.get(0).getCartItemId(),
-                                             items.get(1).getCartItemId());
-
-        CartItemsOrderRequestDto cartItemsOrderRequestDto = CartItemsOrderRequestDto.builder()
-                .cartItemIds(cartItemIds)
-                .phoneNumber(user.getPhone())
-                .deliveryAddress(user.getAddress()).build();
-
-        // When
-        CartItemsOrderResponseDto cartItemsOrderResponseDto = cartService.cartItemsOrder(user.getProviderId(), cartItemsOrderRequestDto);
-        OrderProductDto orderProductDto1 = cartItemsOrderResponseDto.getOrderProducts().get(0);
-        OrderProductDto orderProductDto2 = cartItemsOrderResponseDto.getOrderProducts().get(1);
-        List<Orders> orders = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
-        List<CartItem> cartItems = cartItemRepository.findByIdIn(cartItemIds);
-
-        // Then
-        assertEquals(product.getName(), orderProductDto1.getName());
-        assertEquals(product.getPrice(), orderProductDto1.getPrice());
-        assertEquals(orders.get(1).getQuantity(), orderProductDto1.getQuantity());
-
-        assertEquals(product2.getName(), orderProductDto2.getName());
-        assertEquals(product2.getPrice(), orderProductDto2.getPrice());
-        assertEquals(orders.get(0).getQuantity(), orderProductDto2.getQuantity());
-
-        assertEquals(List.of(), cartItems);
-    }
-
-    @Test
-    @DisplayName("유저는 카트에 있는 물품을 선택해 한 번에 주문할 수 있다. (단 유저의 cartId와 CartItem의 cartId가 다르다면 주문이 취소되어야 한다.)")
-    @Transactional
-    void givenCartItemsOrderRequestDto_whenCartItemsOrder_thenItemsOrderFailed() {
-        // Given
-        AddItemToCartRequestDto requestDto = AddItemToCartRequestDto.builder()
-                                                                    .productId(product.getId())
-                                                                    .quantity(10).build();
-
-        AddItemToCartRequestDto requestDto2 = AddItemToCartRequestDto.builder()
-                                                                     .productId(product2.getId())
-                                                                     .quantity(20).build();
-
-        cartService.addItemToCart(user.getProviderId(), requestDto);
-        cartService.addItemToCart(user2.getProviderId(), requestDto2);
-
-        List<CartItemResponseDto> items1 = cartService.getCartItems(user.getProviderId());
-        List<CartItemResponseDto> items2 = cartService.getCartItems(user2.getProviderId());
-
-        CartItemsOrderRequestDto cartItemsOrderRequestDto = CartItemsOrderRequestDto.builder()
-                                                                                    .cartItemIds(List.of(items1.get(0).getCartItemId(),
-                                                                                                         items2.get(0).getCartItemId()))
-                                                                                    .phoneNumber(user.getPhone())
-                                                                                    .deliveryAddress(user.getAddress()).build();
-
-        // When && Then
-        assertThrows(IllegalArgumentException.class, () -> {cartService.cartItemsOrder(user.getProviderId(), cartItemsOrderRequestDto);});
     }
 }

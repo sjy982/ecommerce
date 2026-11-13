@@ -29,15 +29,6 @@ import lombok.RequiredArgsConstructor;
 public class OrderController {
     private final OrderService orderService;
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<OrderProductResponseDto>> orderProduct(@RequestBody @Valid OrderProductRequestDto dto) {
-        String providerId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        OrderProductResponseDto responseDto = orderService.orderProduct(providerId, dto);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponseUtil.createResponse(HttpStatus.OK.value(), responseDto, "order success"));
-    }
-
     @PostMapping("/payment")
     public ResponseEntity<ApiResponse<OrderProductResponseDto>> orderProductAndPaymentRequest(@RequestBody @Valid OrderProductRequestDto dto) {
         String providerId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

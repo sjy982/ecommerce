@@ -91,6 +91,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       transaction-isolation: TRANSACTION_READ_COMMITTED
+      # 기본값 10 → 30. 재고 판정을 Redis로 옮겨 주문 트랜잭션끼리 공유하는 락이 없어졌으므로 커넥션이 병렬로 일한다.
+      # 출발점: HikariCP 권장식 (DB 코어 수 × 2 + 디스크 수) ≈ 10 × 2 + 1 = 21
+      # 측정(재고 1,000 / 주문 3,000건): 10개 423 TPS → 30개 약 600 TPS
+      # 제약: 모든 앱 인스턴스의 합이 MySQL max_connections(기본 151)를 넘지 않아야 한다 (Blue/Green 2대 = 60)
+      maximum-pool-size: 30
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}

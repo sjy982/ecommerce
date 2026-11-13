@@ -131,44 +131,6 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("유저가 특정 상품을 주문했을 때 해당 상품의 재고가 충분한다면 주민이 완료되어야 한다.")
-    @Transactional
-    void givenOrderProductRequestDto_whenOrderProduct_thenSuccessOrder() {
-        // Given
-        OrderProductRequestDto requestDto = OrderProductRequestDto.builder()
-                .productId(product.getId())
-                .quantity(10)
-                .deliveryAddress("test Address")
-                .phoneNumber("010-1234-1234").build();
-
-        // When
-        OrderProductResponseDto responseDto = orderService.orderProduct(user.getProviderId(), requestDto);
-        entityManager.flush(); //orderProduct에서는 JPQL로 반영하는 작업이 있기 때문에 변경된 내용을 가져오려면 flush, clear가 필요
-        entityManager.clear();
-
-        // Then
-        assertEquals(product.getName(), responseDto.getOrderProduct().getName());
-        assertEquals(product.getPrice(), responseDto.getOrderProduct().getPrice());
-        assertEquals(requestDto.getQuantity(), responseDto.getOrderProduct().getQuantity());
-        assertEquals(requestDto.getDeliveryAddress(), responseDto.getDeliveryAddress());
-        assertEquals(requestDto.getPhoneNumber(), responseDto.getPhoneNumber());
-
-        List<Orders> newOrder = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
-        Product updatedProduct = productRepository.findById(product.getId()).get();
-        Store updatedStore = storeRepository.findById(store.getId()).get();
-        List<NotificationProjection> newNotifications = notificationRepository.findNotificationsByStoreId(store.getId());
-
-        assertEquals(newOrder.get(0).getProduct().getId(), updatedProduct.getId());
-        assertEquals(newOrder.get(0).getStore().getId(), updatedStore.getId());
-        assertEquals(newOrder.get(0).getUser().getProviderId(), user.getProviderId());
-        assertEquals(newNotifications.get(0).getOrderId(), newOrder.get(0).getId());
-
-        // 업데이트 된 stock, totalSales 검사
-        assertEquals(product.getStock() - requestDto.getQuantity(), updatedProduct.getStock());
-        assertEquals(store.getTotalSales() + (product.getPrice() * requestDto.getQuantity()), updatedStore.getTotalSales());
-    }
-
-    @Test
     @DisplayName("유저가 주문 내용을 조회할 때 주문의 userId와 유저의 userId가 같은 경우 조회가 가능해야 한다.")
     @Transactional
     void givenOrderUserIdEqualUserId_whenGetUserOrderProductResponseDto_thenShouldReturnOrderProductResponseDto() {
@@ -180,7 +142,7 @@ class OrderServiceTest {
                                                                   .phoneNumber("010-1234-1234").build();
 
         // When
-        OrderProductResponseDto orderProductResponseDto = orderService.orderProduct(user.getProviderId(), requestDto);
+        OrderProductResponseDto orderProductResponseDto = placeOrder(user, requestDto);
         List<Orders> orders = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
 
         OrderProductResponseDto responseDto = orderService.getUserOrderProductResponseDto(orders.get(0).getId(), user.getProviderId());
@@ -205,7 +167,7 @@ class OrderServiceTest {
                                                                   .phoneNumber("010-1234-1234").build();
 
         // When && Then
-        orderService.orderProduct(user.getProviderId(), requestDto);
+        placeOrder(user, requestDto);
         List<Orders> orders = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
 
         assertThrows(UsernameNotFoundException.class, () -> orderService.getUserOrderProductResponseDto(orders.get(0).getId(), "noneUser"));
@@ -229,9 +191,9 @@ class OrderServiceTest {
                                                                   .phoneNumber("010-1234-1234").build();
 
         // When
-        OrderProductResponseDto orderProductResponseDto1 = orderService.orderProduct(user.getProviderId(), requestDto1);
-        OrderProductResponseDto orderProductResponseDto2 = orderService.orderProduct(user.getProviderId(), requestDto2);
-        orderService.orderProduct(user2.getProviderId(), requestDto2);
+        OrderProductResponseDto orderProductResponseDto1 = placeOrder(user, requestDto1);
+        OrderProductResponseDto orderProductResponseDto2 = placeOrder(user, requestDto2);
+        placeOrder(user2, requestDto2);
 
         List<OrderProductResponseDto> orderProductResponseDtoList = orderService.getUserAllOrderProductsResponseDto(user.getProviderId());
         // Then
@@ -260,7 +222,7 @@ class OrderServiceTest {
                                                                   .phoneNumber("010-1234-1234").build();
 
         // When
-        OrderProductResponseDto orderProductResponseDto = orderService.orderProduct(user.getProviderId(), requestDto);
+        OrderProductResponseDto orderProductResponseDto = placeOrder(user, requestDto);
         List<Orders> orders = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
 
         OrderProductResponseDto responseDto = orderService.getStoreOrderProductResponseDto(orders.get(0).getId(), product.getStore().getId());
@@ -285,7 +247,7 @@ class OrderServiceTest {
                                                                   .phoneNumber("010-1234-1234").build();
 
         // When && Then
-        orderService.orderProduct(user.getProviderId(), requestDto);
+        placeOrder(user, requestDto);
         List<Orders> orders = orderRepository.findAllByUserProviderIdOrderByOrderDateDesc(user.getProviderId());
 
         assertThrows(UsernameNotFoundException.class, () -> orderService.getStoreOrderProductResponseDto(orders.get(0).getId(), product.getStore().getId() + 1));
@@ -309,8 +271,8 @@ class OrderServiceTest {
                                                                    .phoneNumber("010-1234-1234").build();
 
         // When
-        OrderProductResponseDto orderProductResponseDto1 = orderService.orderProduct(user.getProviderId(), requestDto1);
-        OrderProductResponseDto orderProductResponseDto2 = orderService.orderProduct(user.getProviderId(), requestDto2);
+        OrderProductResponseDto orderProductResponseDto1 = placeOrder(user, requestDto1);
+        OrderProductResponseDto orderProductResponseDto2 = placeOrder(user, requestDto2);
 
         List<OrderProductResponseDto> orderProductResponseDtoList = orderService.getStoreAllOrderProductsResponseDto(product.getStore().getId());
         // Then
@@ -325,5 +287,13 @@ class OrderServiceTest {
         assertEquals(orderProductResponseDtoList.get(0).getPhoneNumber(), orderProductResponseDto2.getPhoneNumber());
         assertEquals(orderProductResponseDtoList.get(1).getDeliveryAddress(), orderProductResponseDto1.getDeliveryAddress());
         assertEquals(orderProductResponseDtoList.get(0).getDeliveryAddress(), orderProductResponseDto2.getDeliveryAddress());
+    }
+
+    /** 조회 테스트용 주문을 DB에 바로 저장한다. (주문 접수 흐름 자체는 OrderStockIntegrationTest에서 검증) */
+    private OrderProductResponseDto placeOrder(Users orderer, OrderProductRequestDto dto) {
+        Orders order = orderRepository.save(Orders.builder()
+                .user(orderer).store(store).product(product).quantity(dto.getQuantity())
+                .deliveryAddress(dto.getDeliveryAddress()).phoneNumber(dto.getPhoneNumber()).build());
+        return orderService.getUserOrderProductResponseDto(order.getId(), orderer.getProviderId());
     }
 }

@@ -27,6 +27,9 @@ import com.ecommerce.order.DTO.OrderProductRequestDto;
 import com.ecommerce.order.DTO.OrderProductResponseDto;
 import com.ecommerce.order.service.OrderService;
 import com.ecommerce.security.WithMockCustomUser;
+import com.ecommerce.stock.exception.NotOnSaleException;
+import com.ecommerce.stock.exception.SoldOutException;
+import com.ecommerce.stock.exception.StockUnavailableException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
@@ -63,10 +66,10 @@ class OrderControllerTest {
                                                                      .deliveryAddress("test Address")
                                                                      .phoneNumber("010-1234-1234").build();
 
-        when(orderService.orderProduct(TEST_PROVIDER_ID, requestDto)).thenReturn(responseDto);
+        when(orderService.orderProductAndPaymentRequest(TEST_PROVIDER_ID, requestDto)).thenReturn(responseDto);
 
         // When && Then
-        mockMvc.perform(post("/api/orders")
+        mockMvc.perform(post("/api/orders/payment")
                                 .header("Authorization", "Bearer valid-access-token")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody))
@@ -76,6 +79,44 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.data.orderProduct.price").value(100))
                 .andExpect(jsonPath("$.data.deliveryAddress").value("test Address"))
                 .andExpect(jsonPath("$.data.orderProduct.quantity").value(10));
+    }
+
+    private String orderBody() throws Exception {
+        return objectMapper.writeValueAsString(OrderProductRequestDto.builder()
+                .productId(1L).phoneNumber("010-1234-1234").deliveryAddress("test Address").quantity(1).build());
+    }
+
+    @Test
+    @DisplayName("품절이면 409 Conflict를 응답한다")
+    @WithMockCustomUser(username = TEST_PROVIDER_ID, role = TEST_USER_ROLE)
+    void givenSoldOut_whenOrder_thenConflict() throws Exception {
+        when(orderService.orderProductAndPaymentRequest(org.mockito.ArgumentMatchers.eq(TEST_PROVIDER_ID), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new SoldOutException());
+
+        mockMvc.perform(post("/api/orders/payment").contentType(MediaType.APPLICATION_JSON).content(orderBody()))
+               .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("판매 오픈 전 상품이면 409 Conflict를 응답한다")
+    @WithMockCustomUser(username = TEST_PROVIDER_ID, role = TEST_USER_ROLE)
+    void givenNotOnSale_whenOrder_thenConflict() throws Exception {
+        when(orderService.orderProductAndPaymentRequest(org.mockito.ArgumentMatchers.eq(TEST_PROVIDER_ID), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new NotOnSaleException());
+
+        mockMvc.perform(post("/api/orders/payment").contentType(MediaType.APPLICATION_JSON).content(orderBody()))
+               .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Redis 장애로 재고를 판정할 수 없으면 503 Service Unavailable을 응답한다")
+    @WithMockCustomUser(username = TEST_PROVIDER_ID, role = TEST_USER_ROLE)
+    void givenStockUnavailable_whenOrder_thenServiceUnavailable() throws Exception {
+        when(orderService.orderProductAndPaymentRequest(org.mockito.ArgumentMatchers.eq(TEST_PROVIDER_ID), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new StockUnavailableException(new RuntimeException("down")));
+
+        mockMvc.perform(post("/api/orders/payment").contentType(MediaType.APPLICATION_JSON).content(orderBody()))
+               .andExpect(status().isServiceUnavailable());
     }
 
     @Test

@@ -3,24 +3,14 @@ package com.ecommerce.product.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import com.ecommerce.product.model.Product;
 
-import jakarta.persistence.LockModeType;
-
+/**
+ * product.stock은 판매 총수량이다. 판매 중 재고 판정·차감은 Redis가 하고(RedisStockRepository),
+ * 주문마다 이 row를 UPDATE하지 않는다(핫 row 락 제거).
+ */
 public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsById(long productId);
     Optional<Product> findById(long id);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select p from Product p where p.id = :id")
-    Optional<Product> findByIdForUpdate(@Param("id") Long id);
-
-    @Modifying
-    @Query("UPDATE Product p SET p.stock = p.stock - :quantity WHERE p.id = :productId AND p.stock >= :quantity")
-    int decreaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
 }

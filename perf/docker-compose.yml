@@ -1,0 +1,15 @@
+# 부하 테스트 전용 MySQL / Redis. 로컬에 설치된 MySQL(3306)·Redis(6379)와 포트가 겹치지 않게 3307 / 6380을 쓴다.
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ecom-perf-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce
+    ports:
+      - "3307:3306"
+  redis:
+    image: redis:7
+    container_name: ecom-perf-redis
+    ports:
+      - "6380:6379"

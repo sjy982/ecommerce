@@ -37,3 +37,8 @@ spring:
       port: 6379
 server:
   port: 8081
+payment:
+  sweeper:
+    # 일반 테스트 중에는 스위퍼가 다른 테스트의 PENDING job을 가져가지 않도록 사실상 꺼 둔다.
+    # 스위퍼를 검증하는 테스트(PaymentSweeperIntegrationTest)만 전용 DB에서 짧게 켠다.
+    initial-delay-ms: 3600000
