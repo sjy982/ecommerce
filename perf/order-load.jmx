@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  한정 수량 주문 부하 테스트.
+  값은 -J 옵션으로 바꾼다 (GUI에서는 아래 기본값이 쓰인다):
+    threads=3000  ramp=1  productId=1  tokens=out/tokens.csv  host=localhost  port=8080
+  200(접수)과 409(품절)는 정상 응답으로 본다. 500·503·타임아웃만 에러로 집계된다.
+-->
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="한정 수량 주문 부하 테스트"/>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="주문 요청 (사용자 1명 = 요청 1건)">
+        <stringProp name="ThreadGroup.num_threads">${__P(threads,3000)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(ramp,1)}</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="사용자 토큰 (prepare.sh가 생성)">
+          <stringProp name="filename">${__P(tokens,out/tokens.csv)}</stringProp>
+          <stringProp name="variableNames">accessToken</stringProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="인증·JSON 헤더">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${accessToken}</stringProp></elementProp>
+            <elementProp name="" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/orders/payment">
+          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
+          <stringProp name="HTTPSampler.port">${__P(port,8080)}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/orders/payment</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">60000</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"productId":${__P(productId,1)},"quantity":1,"deliveryAddress":"perf-address","phoneNumber":"010-1234-5678"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="200(접수) 또는 409(품절)면 정상">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="51515">409</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">200(접수)·409(품절)가 아닌 응답</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">true</boolProp>
+            <intProp name="Assertion.test_type">40</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="요약 보고서 (GUI용)">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="집계 보고서 (GUI용, p90·p99 확인)">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="결과 트리 (디버깅용, 부하 측정 땐 끄기)" enabled="false">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
