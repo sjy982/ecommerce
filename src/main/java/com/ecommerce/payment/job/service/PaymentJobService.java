@@ -1,5 +1,6 @@
 package com.ecommerce.payment.job.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
@@ -23,8 +24,32 @@ public class PaymentJobService {
         return paymentJobRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("존재하지 않는다."));
     }
 
+    /** 지금 실행할 PENDING job (재시도 예약 시각이 지난 것만) */
     public List<Long> findPendingIds(int limit) {
-        return paymentJobRepository.findIdsByStatus(PaymentJobStatus.PENDING, PageRequest.of(0, limit));
+        return paymentJobRepository.findDueIds(PaymentJobStatus.PENDING, LocalDateTime.now(), PageRequest.of(0, limit));
+    }
+
+    public List<Long> findIdsByStatus(PaymentJobStatus status, int limit) {
+        return paymentJobRepository.findIdsByStatus(status, PageRequest.of(0, limit));
+    }
+
+    /** 재시도 예약: PROCESSING → PENDING, 실패 횟수와 다음 시도 시각을 기록한다. */
+    @Transactional
+    public void scheduleRetry(Long id, int failedAttempts, LocalDateTime nextAttemptAt) {
+        paymentJobRepository.transition(id, PaymentJobStatus.PROCESSING, PaymentJobStatus.PENDING,
+                failedAttempts, nextAttemptAt);
+    }
+
+    /** 결과를 끝내 모름: 자동으로 실패 처리하지 않고 사람이 확인하도록 남긴다. */
+    @Transactional
+    public void markNeedsReview(Long id, int failedAttempts) {
+        paymentJobRepository.transition(id, PaymentJobStatus.PROCESSING, PaymentJobStatus.NEEDS_REVIEW,
+                failedAttempts, null);
+    }
+
+    @Transactional
+    public void deleteIfStatus(Long id, PaymentJobStatus status) {
+        paymentJobRepository.deleteByIdAndStatus(id, status);
     }
 
     /**
