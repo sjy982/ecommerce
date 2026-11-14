@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.ecommerce.payment.job.model.PaymentJobStatus;
 import com.ecommerce.payment.job.service.PaymentJobService;
 
 /**
@@ -22,13 +23,15 @@ import com.ecommerce.payment.job.service.PaymentJobService;
 class PaymentSweeperTest {
     private PaymentJobService paymentJobService;
     private PaymentSubmitter paymentSubmitter;
+    private PaymentService paymentService;
     private PaymentSweeper sweeper;
 
     @BeforeEach
     void setUp() {
         paymentJobService = mock(PaymentJobService.class);
         paymentSubmitter = mock(PaymentSubmitter.class);
-        sweeper = new PaymentSweeper(paymentJobService, paymentSubmitter);
+        paymentService = mock(PaymentService.class);
+        sweeper = new PaymentSweeper(paymentJobService, paymentSubmitter, paymentService);
     }
 
     @Test
@@ -54,5 +57,29 @@ class PaymentSweeperTest {
         verify(paymentSubmitter).submit(11L);
         verify(paymentSubmitter).submit(12L);
         verify(paymentSubmitter).submit(13L);
+    }
+
+    @Test
+    @DisplayName("재고 복구가 남은 job(RESTOCK_PENDING)은 결제 큐와 상관없이 다시 복구를 시도한다")
+    void givenRestockPending_whenSweep_thenRestock() {
+        when(paymentSubmitter.remainingCapacity()).thenReturn(0);
+        when(paymentJobService.findIdsByStatus(PaymentJobStatus.RESTOCK_PENDING, 100)).thenReturn(List.of(21L, 22L));
+
+        sweeper.sweep();
+
+        verify(paymentService).restock(21L);
+        verify(paymentService).restock(22L);
+    }
+
+    @Test
+    @DisplayName("한 건의 재고 복구가 실패해도 나머지는 계속 시도한다")
+    void givenRestockThrows_whenSweep_thenContinue() {
+        when(paymentSubmitter.remainingCapacity()).thenReturn(0);
+        when(paymentJobService.findIdsByStatus(PaymentJobStatus.RESTOCK_PENDING, 100)).thenReturn(List.of(21L, 22L));
+        org.mockito.Mockito.doThrow(new RuntimeException("redis down")).when(paymentService).restock(21L);
+
+        sweeper.sweep();
+
+        verify(paymentService).restock(22L);
     }
 }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,6 +22,14 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     Optional<Orders> findByIdAndStoreId(@Param("orderId") Long orderId, @Param("storeId") Long storeId);
 
     boolean existsByRequestId(String requestId);
+
+    /**
+     * 조건부 상태 변경. 현재 상태가 from일 때만 to로 바꾼다.
+     * 결제 완료·실패 처리가 두 번 실행돼도 1을 받는 건 한 번뿐이라, 매출 증가나 재고 복구 같은 후속 작업이 한 번만 일어난다.
+     */
+    @Modifying
+    @Query("UPDATE Orders o SET o.status = :to WHERE o.id = :id AND o.status = :from")
+    int changeStatus(@Param("id") Long id, @Param("from") OrderStatus from, @Param("to") OrderStatus to);
 
     /** 해당 상품에서 excludedStatus가 아닌 주문들의 수량 합 (판매 오픈 시 남은 재고 계산용) */
     @Query("SELECT COALESCE(SUM(o.quantity), 0) FROM Orders o WHERE o.product.id = :productId AND o.status <> :excludedStatus")

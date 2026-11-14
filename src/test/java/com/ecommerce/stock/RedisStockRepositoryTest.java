@@ -154,4 +154,50 @@ class RedisStockRepositoryTest {
             downFactory.destroy();
         }
     }
+
+    @Test
+    @DisplayName("결제 실패 재고 복구: 같은 주문으로 여러 번 복구해도 재고는 한 번만 늘어난다")
+    void givenSameOrder_whenRestoreTwice_thenIncreasedOnce() {
+        repository.open(PRODUCT_ID, 10);
+
+        StockRestoreResult first = repository.restore(PRODUCT_ID, 42L, 1);
+        StockRestoreResult second = repository.restore(PRODUCT_ID, 42L, 1);
+
+        assertThat(first).isEqualTo(StockRestoreResult.RESTORED);
+        assertThat(second).isEqualTo(StockRestoreResult.ALREADY_RESTORED);
+        assertThat(repository.currentStock(PRODUCT_ID)).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("결제 실패 재고 복구: 다른 주문은 각각 복구된다")
+    void givenDifferentOrders_whenRestore_thenEachIncreased() {
+        repository.open(PRODUCT_ID, 10);
+
+        repository.restore(PRODUCT_ID, 42L, 1);
+        repository.restore(PRODUCT_ID, 43L, 2);
+
+        assertThat(repository.currentStock(PRODUCT_ID)).isEqualTo(13L);
+    }
+
+    @Test
+    @DisplayName("결제 실패 재고 복구: 판매 중이 아니면(키 없음) 아무것도 만들지 않는다")
+    void givenNotOnSale_whenRestore_thenNothingCreated() {
+        StockRestoreResult result = repository.restore(PRODUCT_ID, 42L, 1);
+
+        assertThat(result).isEqualTo(StockRestoreResult.NOT_ON_SALE);
+        assertThat(repository.currentStock(PRODUCT_ID)).isNull();
+    }
+
+    @Test
+    @DisplayName("판매를 다시 열면 DB 기준으로 재적재하므로 복구 장부도 비운다")
+    void givenRestoredOrder_whenReopen_thenLedgerCleared() {
+        repository.open(PRODUCT_ID, 10);
+        repository.restore(PRODUCT_ID, 42L, 1);
+
+        repository.open(PRODUCT_ID, 5);
+        StockRestoreResult result = repository.restore(PRODUCT_ID, 42L, 1);
+
+        assertThat(result).isEqualTo(StockRestoreResult.RESTORED);
+        assertThat(repository.currentStock(PRODUCT_ID)).isEqualTo(6L);
+    }
 }

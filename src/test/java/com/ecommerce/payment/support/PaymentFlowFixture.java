@@ -141,6 +141,21 @@ public class PaymentFlowFixture {
         return order;
     }
 
+    public Long createPaymentJob(Long orderId, PaymentJobStatus status) {
+        return paymentJobRepository.save(PaymentJob.builder()
+                .orderId(orderId)
+                .status(status)
+                .build()).getId();
+    }
+
+    /** @return 주문의 결제 job 상태, job이 없으면 null */
+    public PaymentJobStatus paymentJobStatus(Long orderId) {
+        return paymentJobRepository.findAll().stream()
+                .filter(job -> orderId.equals(job.getOrderId()))
+                .map(PaymentJob::getStatus)
+                .findFirst().orElse(null);
+    }
+
     public OrderStatus orderStatus(Long orderId) {
         return orderRepository.findById(orderId).orElseThrow().getStatus();
     }
